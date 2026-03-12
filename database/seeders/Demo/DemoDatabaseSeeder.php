@@ -2,6 +2,7 @@
 
 namespace Database\Seeders\Demo;
 
+use App\Constants\TenantDomainMetadata;
 use App\Constants\PlanType;
 use App\Constants\RoadmapItemStatus;
 use App\Constants\RoadmapItemType;
@@ -24,6 +25,7 @@ use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class DemoDatabaseSeeder extends Seeder
 {
@@ -114,6 +116,12 @@ class DemoDatabaseSeeder extends Seeder
             'slug' => 'basic',
             'description' => 'Basic plan',
             'features' => [['feature' => 'Amazing Feature 1'], ['feature' => 'Amazing Feature 2'], ['feature' => 'Amazing Feature 3'], ['feature' => 'Amazing Feature 4'], ['feature' => 'Amazing Feature 5']],
+            'metadata' => [
+                TenantDomainMetadata::PATH_DOMAIN_ENABLED => true,
+                TenantDomainMetadata::SUBDOMAIN_ENABLED => false,
+                TenantDomainMetadata::CUSTOM_DOMAIN_ENABLED => false,
+                TenantDomainMetadata::MAX_CUSTOM_DOMAINS => 0,
+            ],
         ]);
 
         $proProduct = $this->findOrCreateProduct([
@@ -122,6 +130,12 @@ class DemoDatabaseSeeder extends Seeder
             'description' => 'Pro plan',
             'is_popular' => true,
             'features' => [['feature' => 'Amazing Feature 1'], ['feature' => 'Amazing Feature 2'], ['feature' => 'Amazing Feature 3'], ['feature' => 'Amazing Feature 4'], ['feature' => 'Amazing Feature 5']],
+            'metadata' => [
+                TenantDomainMetadata::PATH_DOMAIN_ENABLED => true,
+                TenantDomainMetadata::SUBDOMAIN_ENABLED => true,
+                TenantDomainMetadata::CUSTOM_DOMAIN_ENABLED => false,
+                TenantDomainMetadata::MAX_CUSTOM_DOMAINS => 0,
+            ],
         ]);
 
         $ultimateProduct = $this->findOrCreateProduct([
@@ -129,6 +143,12 @@ class DemoDatabaseSeeder extends Seeder
             'slug' => 'ultimate',
             'description' => 'Ultimate plan',
             'features' => [['feature' => 'Amazing Feature 1'], ['feature' => 'Amazing Feature 2'], ['feature' => 'Amazing Feature 3'], ['feature' => 'Amazing Feature 4'], ['feature' => 'Amazing Feature 5']],
+            'metadata' => [
+                TenantDomainMetadata::PATH_DOMAIN_ENABLED => true,
+                TenantDomainMetadata::SUBDOMAIN_ENABLED => true,
+                TenantDomainMetadata::CUSTOM_DOMAIN_ENABLED => true,
+                TenantDomainMetadata::MAX_CUSTOM_DOMAINS => 1,
+            ],
         ]);
 
         $this->createOneTimeProduct('Lemon', 'lemon', 1000);
@@ -166,7 +186,7 @@ class DemoDatabaseSeeder extends Seeder
 
         for ($i = 0; $i < $numberOfOrders; $i++) {
 
-            $user = User::factory()->create();
+            $user = $this->createDemoUser();
 
             $tenant = Tenant::factory()->create([
                 'created_by' => $user->id,
@@ -212,6 +232,8 @@ class DemoDatabaseSeeder extends Seeder
         $product = Product::where('slug', $data['slug'])->first();
 
         if ($product) {
+            $product->update($data);
+
             return $product;
         }
 
@@ -285,7 +307,7 @@ class DemoDatabaseSeeder extends Seeder
             $numberOfIntervalsBack = $plan->interval == 'month' ? rand(5, 10) : rand(1, 4);
             $createdDate = now()->sub($plan->interval->date_identifier, $numberOfIntervalsBack);
 
-            $user = User::factory()->create(
+            $user = $this->createDemoUser(
                 [
                     'created_at' => $createdDate,
                     'updated_at' => $createdDate,
@@ -369,13 +391,15 @@ class DemoDatabaseSeeder extends Seeder
 
     private function addBlogPosts(User $user)
     {
+        BlogPost::flushEventListeners();  // disable event listeners in booted method
+
         foreach ($this->blogPostTitles as $title) {
+            $slug = Str::slug($title);
 
-            BlogPost::flushEventListeners();  // disable event listeners in booted method
-
-            $blog = BlogPost::create([
+            $blog = BlogPost::updateOrCreate([
+                'slug' => $slug,
+            ], [
                 'title' => $title,
-                'slug' => Str::slug($title),
                 'body' => str_repeat('<p>'.$this->loremIpsum.'</p>', rand(10, 15)),
                 'is_published' => true,
                 'published_at' => now()->sub(rand(1, 10), 'days'),
@@ -386,8 +410,10 @@ class DemoDatabaseSeeder extends Seeder
             // assign an image to the blog post using spatie media library
 
             try {
-                $blog->addMediaFromUrl($this->images[rand(0, count($this->images) - 1)])
-                    ->toMediaCollection('blog-images');
+                if (! $blog->hasMedia('blog-images')) {
+                    $blog->addMediaFromUrl($this->images[rand(0, count($this->images) - 1)])
+                        ->toMediaCollection('blog-images');
+                }
             } catch (\Exception $e) {
                 // do nothing
             }
@@ -402,12 +428,18 @@ class DemoDatabaseSeeder extends Seeder
         $startDate = $firstUserCreatedDate->copy()->startOfDay();
         $endDate = $lastUserCreatedDate->copy()->endOfDay();
 
+        DB::connection()->disableQueryLog();
+
         // loop through each day and calculate metrics
 
-        while ($startDate->lte($endDate)) {
-            Carbon::setTestNow($startDate);
-            $this->metricsService->beat();
-            $startDate->addDay();
+        try {
+            while ($startDate->lte($endDate)) {
+                Carbon::setTestNow($startDate);
+                $this->metricsService->beat();
+                $startDate->addDay();
+            }
+        } finally {
+            Carbon::setTestNow();
         }
     }
 
@@ -417,7 +449,7 @@ class DemoDatabaseSeeder extends Seeder
 
         for ($i = 0; $i < $numberOfUsers; $i++) {
             $date = now()->subDays(rand(1, 1000));
-            $user = User::factory()->create();
+            $user = $this->createDemoUser();
             $user->created_at = $date;
             $user->save();
         }
@@ -431,7 +463,9 @@ class DemoDatabaseSeeder extends Seeder
             // get a random user from database
             $user = User::inRandomOrder()->first();
 
-            $item = $user->roadmapItems()->create([
+            $item = $user->roadmapItems()->updateOrCreate([
+                'slug' => 'roadmap-item-'.$i,
+            ], [
                 'title' => 'Roadmap Item '.$i,
                 'slug' => 'roadmap-item-'.$i,
                 'type' => RoadmapItemType::FEATURE->value,
@@ -441,12 +475,28 @@ class DemoDatabaseSeeder extends Seeder
                 'created_at' => now()->subDays(rand(1, 1000)),
             ]);
 
-            $item->userUpvotes()->attach($user->id, [
+            $item->userUpvotes()->syncWithoutDetaching([$user->id => [
                 'ip_address' => rand(0, 255).'.'.
                     rand(0, 255).'.'.
                     rand(0, 255).'.'.
                     rand(0, 255),
-            ]);
+            ]]);
         }
+    }
+
+    private function createDemoUser(array $attributes = []): User
+    {
+        return User::factory()->create(array_merge([
+            'email' => $this->generateUniqueDemoEmail(),
+        ], $attributes));
+    }
+
+    private function generateUniqueDemoEmail(): string
+    {
+        do {
+            $email = 'demo-'.Str::lower(Str::random(16)).'@example.net';
+        } while (User::where('email', $email)->exists());
+
+        return $email;
     }
 }

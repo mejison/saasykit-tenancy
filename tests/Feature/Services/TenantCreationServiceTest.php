@@ -5,6 +5,7 @@ namespace Tests\Feature\Services;
 use App\Constants\TenancyPermissionConstants;
 use App\Events\Tenant\TenantCreated;
 use App\Services\TenantCreationService;
+use App\Services\TenantOnboardingService;
 use App\Services\TenantPermissionService;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\FeatureTest;
@@ -20,7 +21,12 @@ class TenantCreationServiceTest extends FeatureTest
             ->once()
             ->with(\Mockery::any(), $user, TenancyPermissionConstants::TENANT_CREATOR_ROLE);
 
-        $tenantCreationService = new TenantCreationService($tenantPermissionService);
+        $tenantOnboardingService = \Mockery::mock(TenantOnboardingService::class);
+        $tenantOnboardingService->shouldReceive('getOrCreateProfile')
+            ->once()
+            ->with(\Mockery::any());
+
+        $tenantCreationService = new TenantCreationService($tenantPermissionService, $tenantOnboardingService);
 
         Event::fake();
 

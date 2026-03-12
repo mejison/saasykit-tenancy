@@ -58,4 +58,19 @@ class Tenant extends Model
     {
         return $this->hasMany(Role::class);
     }
+
+    public function onboardingProfile(): HasOne
+    {
+        return $this->hasOne(TenantOnboardingProfile::class);
+    }
+
+    public function sites(): HasMany
+    {
+        return $this->hasMany(TenantSite::class);
+    }
+
+    public function domains(): HasMany
+    {
+        return $this->hasMany(TenantDomain::class);
+    }
 }

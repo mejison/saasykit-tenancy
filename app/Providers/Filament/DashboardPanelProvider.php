@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Constants\AnnouncementPlacement;
 use App\Constants\TenancyPermissionConstants;
+use App\Filament\Dashboard\Pages\Domains;
 use App\Filament\Dashboard\Pages\TenantSettings;
 use App\Filament\Dashboard\Pages\TwoFactorAuth\TwoFactorAuth;
 use App\Http\Middleware\UpdateUserLastSeenAt;
@@ -65,6 +66,21 @@ class DashboardPanelProvider extends PanelProvider
                     )
                     ->icon('heroicon-s-cog-8-tooth')
                     ->url(fn () => TenantSettings::getUrl()),
+                Action::make('domains-site')
+                    ->label(__('Domains & Site'))
+                    ->visible(
+                        function () {
+                            $tenantPermissionService = app(TenantPermissionService::class);
+
+                            return $tenantPermissionService->tenantUserHasPermissionTo(
+                                Filament::getTenant(),
+                                auth()->user(),
+                                TenancyPermissionConstants::PERMISSION_UPDATE_TENANT_SETTINGS
+                            );
+                        }
+                    )
+                    ->icon('heroicon-s-globe-alt')
+                    ->url(fn () => Domains::getUrl()),
                 Action::make('two-factor-auth')
                     ->label(__('2-Factor Authentication'))
                     ->visible(

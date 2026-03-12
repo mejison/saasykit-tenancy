@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TenantOnboardingService;
 use App\Services\UserService;
 use App\Validator\RegisterValidator;
 use Illuminate\Foundation\Auth\RegistersUsers;
@@ -42,6 +43,10 @@ class RegisterController extends Controller
 
     public function redirectPath()
     {
+        if (auth()->check() && app(TenantOnboardingService::class)->userRequiresOnboarding(auth()->user())) {
+            return route('tenant-onboarding.show');
+        }
+
         return Redirect::getIntendedUrl() ?? route('home');
     }
 

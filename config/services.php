@@ -105,4 +105,13 @@ return [
         'from' => env('TWILIO_FROM'),
     ],
 
+    'vvveb' => [
+        'base_url' => env('VVVEB_BASE_URL'),
+        'api_token' => env('VVVEB_API_TOKEN'),
+        'create_site_endpoint' => env('VVVEB_CREATE_SITE_ENDPOINT', '/rest/beatkongs/sites/provision'),
+        'site_endpoint' => env('VVVEB_SITE_ENDPOINT', '/rest/beatkongs/sites'),
+        'public_host' => env('VVVEB_PUBLIC_HOST'),
+        'builder_url' => env('VVVEB_BUILDER_URL'),
+    ],
+
 ];

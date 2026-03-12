@@ -4,7 +4,9 @@ use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentProviders\PaddleController;
+use App\Http\Controllers\PublicTenantSiteController;
 use App\Http\Controllers\RoadmapController;
+use App\Http\Controllers\TenantOnboardingController;
 use App\Services\SessionService;
 use App\Services\TenantCreationService;
 use App\Services\UserDashboardService;
@@ -82,6 +84,14 @@ Route::post('/email/verification-notification', function (\Illuminate\Http\Reque
 Route::get('/registration/thank-you', function () {
     return view('auth.thank-you');
 })->middleware('auth')->name('registration.thank-you');
+
+Route::get('/onboarding/workspace', [TenantOnboardingController::class, 'show'])
+    ->middleware('auth')
+    ->name('tenant-onboarding.show');
+
+Route::post('/onboarding/workspace', [TenantOnboardingController::class, 'store'])
+    ->middleware('auth')
+    ->name('tenant-onboarding.store');
 
 Route::get('/auth/{provider}/redirect', [OAuthController::class, 'redirect'])
     ->where('provider', 'google|github|facebook|twitter-oauth-2|linkedin-openid|bitbucket|gitlab')
@@ -199,3 +209,5 @@ Route::controller(InvoiceController::class)
         Route::get('/generate/{transactionUuid}', 'generate')->name('invoice.generate');
         Route::get('/preview', 'preview')->name('invoice.preview');
     });
+
+Route::fallback(PublicTenantSiteController::class);

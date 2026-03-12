@@ -14,6 +14,7 @@ class TenantCreationService
 {
     public function __construct(
         private TenantPermissionService $tenantPermissionService,
+        private TenantOnboardingService $tenantOnboardingService,
     ) {}
 
     public function findUserTenantsForNewOrder(?User $user)
@@ -110,6 +111,8 @@ class TenantCreationService
         ]);
 
         $tenant->users()->attach($user);
+
+        $this->tenantOnboardingService->getOrCreateProfile($tenant);
 
         $this->tenantPermissionService->assignTenantUserRole($tenant, $user, TenancyPermissionConstants::TENANT_CREATOR_ROLE);
 

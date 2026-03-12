@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth\Trait;
 
 use App\Models\User;
+use App\Services\TenantOnboardingService;
 use Illuminate\Support\Facades\Redirect;
 
 trait RedirectAwareTrait
@@ -21,6 +22,10 @@ trait RedirectAwareTrait
 
         if ($user->is_admin) {
             return route('filament.admin.pages.dashboard');
+        }
+
+        if (app(TenantOnboardingService::class)->userRequiresOnboarding($user)) {
+            return route('tenant-onboarding.show');
         }
 
         return route('dashboard');
