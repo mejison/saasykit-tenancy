@@ -4,8 +4,6 @@ namespace App\Providers\Filament;
 
 use App\Constants\AnnouncementPlacement;
 use App\Constants\TenancyPermissionConstants;
-use App\Filament\Dashboard\Pages\Domains;
-use App\Filament\Dashboard\Pages\TenantSettings;
 use App\Filament\Dashboard\Pages\TwoFactorAuth\TwoFactorAuth;
 use App\Http\Middleware\UpdateUserLastSeenAt;
 use App\Livewire\AddressForm;
@@ -50,38 +48,7 @@ class DashboardPanelProvider extends PanelProvider
                         fn () => auth()->user()->isAdmin()
                     )
                     ->url(fn () => route('filament.admin.pages.dashboard'))
-                    ->icon('heroicon-s-cog-8-tooth'),
-                Action::make('workspace-settings')
-                    ->label(__('Workspace Settings'))
-                    ->visible(
-                        function () {
-                            $tenantPermissionService = app(TenantPermissionService::class);
-
-                            return $tenantPermissionService->tenantUserHasPermissionTo(
-                                Filament::getTenant(),
-                                auth()->user(),
-                                TenancyPermissionConstants::PERMISSION_UPDATE_TENANT_SETTINGS
-                            );
-                        }
-                    )
-                    ->icon('heroicon-s-cog-8-tooth')
-                    ->url(fn () => TenantSettings::getUrl()),
-                Action::make('domains-site')
-                    ->label(__('Domains & Site'))
-                    ->visible(
-                        function () {
-                            $tenantPermissionService = app(TenantPermissionService::class);
-
-                            return $tenantPermissionService->tenantUserHasPermissionTo(
-                                Filament::getTenant(),
-                                auth()->user(),
-                                TenancyPermissionConstants::PERMISSION_UPDATE_TENANT_SETTINGS
-                            );
-                        }
-                    )
-                    ->icon('heroicon-s-globe-alt')
-                    ->url(fn () => Domains::getUrl()),
-                Action::make('two-factor-auth')
+                    ->icon('heroicon-s-cog-8-tooth'),                Action::make('two-factor-auth')
                     ->label(__('2-Factor Authentication'))
                     ->visible(
                         fn () => config('app.two_factor_auth_enabled')
@@ -116,8 +83,9 @@ class DashboardPanelProvider extends PanelProvider
             })
             ->navigationGroups([
                 NavigationGroup::make()
+                    ->label(__('Workspace')),
+                NavigationGroup::make()
                     ->label(__('Team'))
-                    ->icon('heroicon-s-users')
                     ->collapsed(),
             ])
             ->renderHook(PanelsRenderHook::BODY_START,

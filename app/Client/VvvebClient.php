@@ -10,17 +10,51 @@ class VvvebClient
 {
     private const DEFAULT_CREATE_SITE_ENDPOINT = '/rest/beatkongs/sites/provision';
 
+
+    private function request()
+    {
+        $token = (string) config('services.vvveb.api_token');
+
+        $request = Http::acceptJson();
+
+        if ($token !== '') {
+            // Some PHP/FastCGI setups do not forward the Authorization header reliably.
+            // Send both Authorization (via withToken) and an explicit Bearer header.
+            $request = $request->withToken($token)->withHeaders([
+                'Bearer' => $token,
+            ]);
+        }
+
+        return $request;
+    }
+
+    private function addTokenToUrl(string $url): string
+    {
+        $token = (string) config('services.vvveb.api_token');
+
+        if ($token === '') {
+            return $url;
+        }
+
+        // Fallback for environments that strip auth headers.
+        if (str_contains($url, '_token=')) {
+            return $url;
+        }
+
+        $sep = str_contains($url, '?') ? '&' : '?';
+
+        return $url.$sep.'_token='.rawurlencode($token);
+    }
+
     public function createSite(array $payload): Response
     {
-        return Http::withToken(config('services.vvveb.api_token'))
-            ->acceptJson()
+        return $this->request()
             ->post($this->getApiUrl(config('services.vvveb.create_site_endpoint', self::DEFAULT_CREATE_SITE_ENDPOINT)), $payload);
     }
 
     public function getSite(string $siteId): Response
     {
-        return Http::withToken(config('services.vvveb.api_token'))
-            ->acceptJson()
+        return $this->request()
             ->get($this->getApiUrl($this->getSiteEndpoint($siteId)));
     }
 
@@ -32,7 +66,7 @@ class VvvebClient
     private function getApiUrl(string $path): string
     {
         if ($this->isAbsoluteUrl($path)) {
-            return $path;
+            return $this->addTokenToUrl($path);
         }
 
         $baseUrl = $this->resolveBaseUrl();
@@ -41,7 +75,7 @@ class VvvebClient
             throw new RuntimeException('Vvveb API base URL is not configured. Set VVVEB_BASE_URL or provide an absolute VVVEB_BUILDER_URL.');
         }
 
-        return rtrim($baseUrl, '/').'/'.ltrim($path, '/');
+        return $this->addTokenToUrl(rtrim($baseUrl, '/').'/'.ltrim($path, '/'));
     }
 
     private function resolveBaseUrl(): ?string

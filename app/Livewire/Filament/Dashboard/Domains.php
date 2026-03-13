@@ -4,10 +4,13 @@ namespace App\Livewire\Filament\Dashboard;
 
 use App\Constants\TenantDomainType;
 use App\Constants\TenantSiteProvisioningStatus;
+use App\Constants\SubscriptionConstants;
+use App\Constants\SubscriptionStatus;
 use App\Models\TenantDomain;
 use App\Services\TenantDomainEntitlementService;
 use App\Services\TenantDomainService;
 use App\Services\VvvebProvisioningService;
+use App\Services\VvvebHandoffService;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
@@ -41,17 +44,21 @@ class Domains extends Component implements HasActions, HasForms, HasTable
 
     private VvvebProvisioningService $vvvebProvisioningService;
 
+    private VvvebHandoffService $vvvebHandoffService;
+
     public ?array $data = [];
 
     public function boot(
         TenantDomainService $tenantDomainService,
         TenantDomainEntitlementService $tenantDomainEntitlementService,
         VvvebProvisioningService $vvvebProvisioningService,
+        VvvebHandoffService $vvvebHandoffService,
     ): void
     {
         $this->tenantDomainService = $tenantDomainService;
         $this->tenantDomainEntitlementService = $tenantDomainEntitlementService;
         $this->vvvebProvisioningService = $vvvebProvisioningService;
+        $this->vvvebHandoffService = $vvvebHandoffService;
     }
 
     public function mount(): void
@@ -194,6 +201,40 @@ class Domains extends Component implements HasActions, HasForms, HasTable
         return Filament::getTenant()->sites()->where('provider', 'vvveb')->value('builder_url');
     }
 
+    public function getBuilderHandoffUrl(): ?string
+    {
+        $tenant = Filament::getTenant();
+
+        $siteId = $tenant->sites()->where('provider', 'vvveb')->value('external_site_id');
+        if (! $siteId) {
+            return null;
+        }
+
+                $siteBuilderUrl = (string) ($tenant->sites()->where('provider', 'vvveb')->value('builder_url') ?? '');
+        $baseBuilderUrl = (string) config('services.vvveb.builder_url');
+
+        if (str_starts_with($siteBuilderUrl, 'http://') || str_starts_with($siteBuilderUrl, 'https://')) {
+            $builderUrl = $siteBuilderUrl;
+        } elseif ($siteBuilderUrl !== '') {
+            $sitePath = str_starts_with($siteBuilderUrl, '/') ? $siteBuilderUrl : '/'.$siteBuilderUrl;
+            $builderUrl = rtrim($baseBuilderUrl, '/').$sitePath;
+        } else {
+            $builderUrl = $baseBuilderUrl;
+        }
+        $userId = (int) auth()->id();
+        if (! $userId) {
+            return null;
+        }
+
+        return $this->vvvebHandoffService->buildHandoffUrl(
+            (string) $tenant->uuid,
+            (string) $siteId,
+            $userId,
+            $builderUrl,
+            'module=settings/site',
+        );
+    }
+
     public function getExternalSiteId(): ?string
     {
         return Filament::getTenant()->sites()->where('provider', 'vvveb')->value('external_site_id');
@@ -221,9 +262,39 @@ class Domains extends Component implements HasActions, HasForms, HasTable
 
     public function render(): View
     {
-        $tenant = Filament::getTenant()->loadMissing(['onboardingProfile', 'sites', 'domains']);
+        $tenant = Filament::getTenant();
+        $tenant = $tenant?->fresh(['onboardingProfile', 'sites', 'domains']);
+
+        abort_if(! $tenant, 404);
         $primaryDomain = $this->tenantDomainService->getPrimaryDomain($tenant);
         $capabilities = $this->tenantDomainEntitlementService->getCapabilities($tenant);
+
+        $customDomainLimit = (int) ($capabilities['max_custom_domains'] ?? 0);
+        $customDomainUsed = (int) ($tenant->domains?->where('type', TenantDomainType::CUSTOM->value)->count() ?? 0);
+
+        $subscriptionNotice = null;
+
+        $hasActiveSubscription = $tenant->subscriptions()
+            ->where('status', SubscriptionStatus::ACTIVE->value)
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->exists();
+
+        if (! $hasActiveSubscription) {
+            $latestSubscription = $tenant->subscriptions()
+                ->whereIn('status', SubscriptionConstants::SUBSCRIPTION_STATUS_THAT_ARE_NOT_DEAD)
+                ->latest()
+                ->first();
+
+            if ($latestSubscription?->status === SubscriptionStatus::PENDING->value) {
+                $subscriptionNotice = __('Your subscription is pending activation. Plan features like subdomain/custom domains will be enabled after activation.');
+            } elseif ($latestSubscription?->status === SubscriptionStatus::PENDING_USER_VERIFICATION->value) {
+                $subscriptionNotice = __('Your subscription is waiting for user verification. Plan features will be enabled after verification completes.');
+            } elseif ($latestSubscription?->status === SubscriptionStatus::PAST_DUE->value) {
+                $subscriptionNotice = __('Your subscription is past due. Some plan features may be unavailable until payment is resolved.');
+            }
+        }
 
         return view('livewire.filament.dashboard.domains', [
             'tenant' => $tenant,
@@ -231,8 +302,12 @@ class Domains extends Component implements HasActions, HasForms, HasTable
             'provisioningStatus' => $this->getProvisioningStatus(),
             'provisioningError' => $this->getProvisioningError(),
             'builderUrl' => $this->getBuilderUrl(),
+            'builderHandoffUrl' => $this->getBuilderHandoffUrl(),
             'externalSiteId' => $this->getExternalSiteId(),
             'capabilities' => $capabilities,
+            'customDomainLimit' => $customDomainLimit,
+            'customDomainUsed' => $customDomainUsed,
+            'subscriptionNotice' => $subscriptionNotice,
             'canAddCustomDomain' => $this->tenantDomainService->canAddCustomDomain($tenant),
             'canRetryProvisioning' => $this->canRetryProvisioning(),
         ]);

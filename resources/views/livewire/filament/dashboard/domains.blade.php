@@ -20,16 +20,36 @@
         </div>
 
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-            <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('Builder Site') }}</div>
-            <div class="mt-2 text-lg font-semibold break-all">{{ $externalSiteId ?? __('Pending') }}</div>
-            @if ($builderUrl)
+            <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('Builder') }}</div>
+            <div class="mt-2 text-lg font-semibold break-all">{{ $builderHandoffUrl ? __('Connected') : __('Pending') }}</div>
+            @if (($canRetryProvisioning || $provisioningError) && $externalSiteId)
+                <details class="mt-3">
+                    <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        {{ __('Advanced') }}
+                    </summary>
+                    <div class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        <div class="font-medium">{{ __('Builder Site ID') }}</div>
+                        <div class="mt-1 break-all">{{ $externalSiteId }}</div>
+                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('Provide this ID to support if asked.') }}</div>
+                    </div>
+                </details>
+            @endif
+
+            @if ($builderHandoffUrl)
                 <div class="mt-3">
-                    <a href="{{ $builderUrl }}" class="text-sm font-medium text-primary-600 hover:underline" target="_blank" rel="noreferrer">
+                    <a href="{{ $builderHandoffUrl }}" class="text-sm font-medium text-primary-600 hover:underline" target="_blank" rel="noreferrer">
                         {{ __('Open Builder') }}
                     </a>
                 </div>
             @endif
         </div>
+    @if ($subscriptionNotice)
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+            <div class="font-semibold">{{ __('Subscription status') }}</div>
+            <div class="mt-2 break-words">{{ $subscriptionNotice }}</div>
+        </div>
+    @endif
+
     </div>
 
     @if ($provisioningError)
@@ -39,7 +59,7 @@
         </div>
     @endif
 
-    <div class="grid gap-4 md:grid-cols-4">
+    <div class="grid gap-4 md:grid-cols-3">
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
             <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('Path Domain') }}</div>
             <div class="mt-2 text-lg font-semibold">{{ !empty($capabilities['path_domain_enabled']) ? __('Enabled') : __('Disabled') }}</div>
@@ -52,18 +72,20 @@
             <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('Custom Domains') }}</div>
             <div class="mt-2 text-lg font-semibold">{{ !empty($capabilities['custom_domain_enabled']) ? __('Enabled') : __('Not included') }}</div>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-            <div class="text-sm text-gray-500 dark:text-gray-400">{{ __('Custom Domain Limit') }}</div>
-            <div class="mt-2 text-lg font-semibold">{{ $capabilities['max_custom_domains'] ?? 0 }}</div>
-        </div>
     </div>
 
     <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/5">
         <div class="mb-4">
-            <h3 class="text-lg font-semibold">{{ __('Add Custom Domain') }}</h3>
+            <h3 class="text-lg font-semibold">{{ __('Custom Domains') }}</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400">
                 {{ __('Custom domains are limited by the metadata of the active product attached to this workspace.') }}
             </p>
+
+            @if (!empty($capabilities['custom_domain_enabled']))
+                <div class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    {{ __('Used') }} {{ $customDomainUsed }} {{ __('of') }} {{ $customDomainLimit }}
+                </div>
+            @endif
         </div>
 
         @if ($canAddCustomDomain)
@@ -73,7 +95,7 @@
                 <div class="pt-4 flex gap-4">
                     <x-filament::button type="submit">
                         <x-filament::loading-indicator class="h-5 w-5 inline" wire:loading />
-                        {{ __('Add Domain') }}
+                        {{ __('Add Custom Domain') }}
                     </x-filament::button>
                 </div>
             </form>

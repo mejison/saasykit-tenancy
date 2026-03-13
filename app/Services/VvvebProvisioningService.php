@@ -108,7 +108,7 @@ class VvvebProvisioningService
         $tenantSite->update([
             'external_site_id' => data_get($data, 'site_id', data_get($data, 'id')),
             'external_site_uuid' => data_get($data, 'external_site_uuid', data_get($data, 'uuid')),
-            'builder_url' => data_get($data, 'builder_url', config('services.vvveb.builder_url')),
+            'builder_url' => $this->normalizeBuilderUrl((string) data_get($data, 'builder_url')) ?? config('services.vvveb.builder_url'),
             'provisioning_status' => TenantSiteProvisioningStatus::PROVISIONED,
             'payload' => $payload,
             'error_message' => null,
@@ -123,4 +123,30 @@ class VvvebProvisioningService
 
         return $tenantSite->fresh();
     }
+
+    private function normalizeBuilderUrl(?string $builderUrl): ?string
+    {
+        $builderUrl = trim((string) $builderUrl);
+
+        if ($builderUrl === '') {
+            return config('services.vvveb.builder_url');
+        }
+
+        if (preg_match('#^https?://#i', $builderUrl)) {
+            return $builderUrl;
+        }
+
+        $base = trim((string) config('services.vvveb.builder_url'));
+
+        if ($base === '' || ! preg_match('#^https?://#i', $base)) {
+            return null;
+        }
+
+        if (! str_starts_with($builderUrl, '/')) {
+            $builderUrl = '/'.$builderUrl;
+        }
+
+        return rtrim($base, '/').$builderUrl;
+    }
+
 }

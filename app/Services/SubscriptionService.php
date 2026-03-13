@@ -182,7 +182,9 @@ class SubscriptionService
 
         return Subscription::where('tenant_id', $tenant->id)
             ->where('status', '=', SubscriptionStatus::ACTIVE->value)
-            ->where('ends_at', '>', now())
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
             ->get();
     }
 
@@ -210,6 +212,9 @@ class SubscriptionService
 
         return Subscription::where('tenant_id', $tenant->id)
             ->where('status', '=', SubscriptionStatus::ACTIVE->value)
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
             ->whereHas('plan', function ($query) use ($planType) {
                 $query->where('type', $planType->value);
             })->first();
@@ -531,7 +536,9 @@ class SubscriptionService
 
         $subscriptions = $tenant->subscriptions()
             ->where('status', SubscriptionStatus::ACTIVE->value)
-            ->where('ends_at', '>', Carbon::now())
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', Carbon::now());
+            })
             ->get();
 
         if ($subscriptions->count() === 0) {

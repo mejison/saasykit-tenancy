@@ -35,6 +35,21 @@ class TenantSettings extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false;
+        return true;
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Workspace');
+    }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-s-cog-8-tooth';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 10;
     }
 }

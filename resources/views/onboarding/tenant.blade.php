@@ -27,7 +27,7 @@
                                    value="{{ old('username_slug', $profile->username_slug) }}" required
                                    max-width="w-full"/>
 
-                    <p class="text-xs opacity-70 -mt-2 mb-2">
+                    <p class="text-xs opacity-70 -mt-4 mb-2">
                         {{ __('This will be used for URLs like :url', ['url' => ($tenant->domains->first()?->host ?? (parse_url(config('app.url'), PHP_URL_HOST) ?: 'mysite.com')).'/your-name']) }}
                     </p>
 

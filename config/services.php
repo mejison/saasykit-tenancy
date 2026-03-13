@@ -112,6 +112,8 @@ return [
         'site_endpoint' => env('VVVEB_SITE_ENDPOINT', '/rest/beatkongs/sites'),
         'public_host' => env('VVVEB_PUBLIC_HOST'),
         'builder_url' => env('VVVEB_BUILDER_URL'),
+        'handoff_secret' => env('VVVEB_HANDOFF_SECRET'),
+        'handoff_ttl' => env('VVVEB_HANDOFF_TTL', 90),
     ],
 
 ];

@@ -35,6 +35,60 @@ class Domains extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false;
+        return true;
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Workspace');
+    }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-s-globe-alt';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 20;
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $tenant = Filament::getTenant();
+
+        if (! $tenant) {
+            return null;
+        }
+
+        $tenant->loadMissing('onboardingProfile');
+
+        $status = (string) ($tenant->onboardingProfile?->site_provisioning_status?->value ?? '');
+
+        return match ($status) {
+            'failed' => __('Failed'),
+            'pending' => __('Pending'),
+            'processing' => __('Syncing'),
+            default => null,
+        };
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $tenant = Filament::getTenant();
+
+        if (! $tenant) {
+            return null;
+        }
+
+        $tenant->loadMissing('onboardingProfile');
+
+        $status = (string) ($tenant->onboardingProfile?->site_provisioning_status?->value ?? '');
+
+        return match ($status) {
+            'failed' => 'danger',
+            'pending', 'processing' => 'warning',
+            default => null,
+        };
     }
 }

@@ -22,20 +22,30 @@ class TenantDomainService
             return;
         }
 
-        TenantDomain::updateOrCreate(
+        $domain = TenantDomain::updateOrCreate(
             [
+                'tenant_id' => $tenant->id,
                 'host' => $host,
                 'path' => $usernameSlug,
             ],
             [
-                'tenant_id' => $tenant->id,
                 'type' => TenantDomainType::PATH,
                 'status' => TenantDomainStatus::ACTIVE,
                 'source' => 'system',
-                'is_primary' => true,
+                // Do not force this as primary here; `syncPrimarySystemDomain()` decides.
+                'is_primary' => false,
                 'verified_at' => now(),
             ],
         );
+
+        $hasPrimary = TenantDomain::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('is_primary', true)
+            ->exists();
+
+        if (! $hasPrimary) {
+            $domain->update(['is_primary' => true]);
+        }
     }
 
     public function syncEntitledDomains(Tenant $tenant): void
@@ -67,11 +77,12 @@ class TenantDomainService
 
         return TenantDomain::updateOrCreate(
             [
+                'tenant_id' => $tenant->id,
                 'host' => $host,
                 'path' => null,
             ],
             [
-                'tenant_id' => $tenant->id,
+
                 'type' => TenantDomainType::SUBDOMAIN,
                 'status' => TenantDomainStatus::ACTIVE,
                 'source' => 'system',
@@ -145,7 +156,8 @@ class TenantDomainService
 
         $tenant->domains()->update(['is_primary' => false]);
 
-        $domain->update(['is_primary' => true]);
+        // Avoid stale in-memory model state issues after bulk updates.
+        TenantDomain::query()->whereKey($domain->id)->update(['is_primary' => true]);
     }
 
     public function removeCustomDomain(Tenant $tenant, TenantDomain $domain): void
@@ -212,9 +224,12 @@ class TenantDomainService
 
     private function syncPrimarySystemDomain(Tenant $tenant): void
     {
-        $tenant->load('domains');
+        $hasPrimaryCustomDomain = $tenant->domains()
+            ->where('type', TenantDomainType::CUSTOM->value)
+            ->where('is_primary', true)
+            ->exists();
 
-        if ($tenant->domains->contains(fn (TenantDomain $domain) => $domain->type === TenantDomainType::CUSTOM && $domain->is_primary)) {
+        if ($hasPrimaryCustomDomain) {
             return;
         }
 
@@ -222,7 +237,7 @@ class TenantDomainService
             ? TenantDomainType::SUBDOMAIN
             : TenantDomainType::PATH;
 
-        $preferredDomain = $tenant->domains->firstWhere('type', $preferredType);
+        $preferredDomain = $tenant->domains()->where('type', $preferredType->value)->first();
 
         if (! $preferredDomain) {
             return;
@@ -232,9 +247,7 @@ class TenantDomainService
             'is_primary' => false,
         ]);
 
-        $preferredDomain->update([
-            'is_primary' => true,
-        ]);
+        TenantDomain::query()->whereKey($preferredDomain->id)->update(['is_primary' => true]);
     }
 
     private function normalizeHost(string $host): string
