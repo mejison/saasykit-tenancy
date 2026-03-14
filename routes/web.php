@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\BuilderRedirectController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentProviders\PaddleController;
 use App\Http\Controllers\PublicTenantSiteController;
@@ -34,6 +35,10 @@ Route::get('/', function () {
 Route::get('/dashboard', function (UserDashboardService $dashboardService) {
     return redirect($dashboardService->getUserDashboardUrl(Auth::user()));
 })->name('dashboard')->middleware('auth');
+
+Route::get('/builder/redirect', BuilderRedirectController::class)
+    ->name('builder.redirect')
+    ->middleware('auth');
 
 Auth::routes();
 

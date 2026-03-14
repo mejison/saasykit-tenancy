@@ -31,7 +31,7 @@ class TenantOnboardingControllerTest extends FeatureTest
             'username_slug' => 'producer-empire',
         ]);
 
-        $response->assertRedirect(route('filament.dashboard.pages.dashboard', ['tenant' => $tenant]));
+        $response->assertRedirect(route('builder.redirect'));
         $this->assertDatabaseHas('tenant_onboarding_profiles', [
             'tenant_id' => $tenant->id,
             'brand_name' => 'Producer Empire',

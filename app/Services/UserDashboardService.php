@@ -19,7 +19,7 @@ class UserDashboardService
         $tenant = $user->tenants()->orderByPivot('is_default', 'desc')->first();
 
         if ($tenant !== null) {
-            return route('filament.dashboard.pages.dashboard', ['tenant' => $tenant]);
+            return route('builder.redirect');
         }
 
         return route('home');

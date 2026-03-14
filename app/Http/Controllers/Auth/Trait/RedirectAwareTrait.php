@@ -28,6 +28,6 @@ trait RedirectAwareTrait
             return route('tenant-onboarding.show');
         }
 
-        return route('dashboard');
+        return route('builder.redirect');
     }
 }
